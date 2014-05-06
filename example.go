@@ -6,7 +6,7 @@ import "crush"
 
 type MyService struct {}
 
-func (myService *MyService) Execute(i float64, j float64) {
+func (myService *MyService) Multiply(i float64, j float64) {
 	fmt.Printf("i*j is %2.2f\n", i*j)
 }
 
@@ -23,17 +23,24 @@ func (myService *MyService) Fibonacci(i float64) {
 	fmt.Printf("Fn for n=%d is %d\n", n, a)
 }
 
+func (myService *MyService) Explode() {
+	panic("Something went horribly wrong!")
+}
+
 func main() {
 	w := crush.NewWorker(&MyService{}, "MyService")
 
-	w.Enqueue("Execute", 1.1, 2.3)
+	go w.ServeHttp("0.0.0.0:8080")
+
+	w.Enqueue("Multiply", 1.1, 2.3)
 	w.Enqueue("Fibonacci", 10)
-	w.Enqueue("Execute", 1.1, 2.4)
+	w.Enqueue("Multiply", 1.1, 2.4)
 	w.Enqueue("Fibonacci", 20)
-	w.Enqueue("Execute", 1.1, 2.5)
+	w.Enqueue("Multiply", 1.1, 2.5)
 	w.Enqueue("Fibonacci", 30)
-	w.Enqueue("Execute", 1.1, 2.6)
+	w.Enqueue("Multiply", 1.1, 2.6)
 	w.Enqueue("Fibonacci", 40)
+	w.Enqueue("Explode")
 
 	w.Work()
 }

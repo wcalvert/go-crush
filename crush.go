@@ -5,32 +5,57 @@ import "encoding/json"
 import "reflect"
 import "errors"
 import "time"
+import "fmt"
+import "net/http"
 
-const QueuePrefix = "crush:queues:"
+const QueuePrefix = "crush:queued:"
+const QueueFinishedPrefix = "crush:finished:"
+const QueueFailedPrefix = "crush:failed:"
 
 type Worker struct {
     service interface{}
     WorkQueue string
+    FinishedQueue string
+    FailedQueue string
     client redis.Client
-    idleSleep int
+    IdleSleep int
+
 }
 
 func NewWorker(service interface{}, name string) (*Worker) {
     w := new(Worker)
+    w.IdleSleep = 1000
     w.service = service
     w.WorkQueue = QueuePrefix + name
+    w.FinishedQueue = QueueFinishedPrefix + name
+    w.FailedQueue = QueueFailedPrefix +name
     return w
 }
 
 type QueuedCall struct {
     MethodName string
     Args []interface{}
+    Enqueued int64
+    Executed int64
+}
+
+func (w *Worker) EnqueueFailed(qc QueuedCall) {
+    if b, err := json.Marshal(qc); err == nil {
+        w.client.Rpush(w.FailedQueue, b)
+    }
+}
+
+func (w *Worker) EnqueueFinished(qc QueuedCall) {
+    if b, err := json.Marshal(qc); err == nil {
+        w.client.Rpush(w.FinishedQueue, b)
+    }
 }
 
 func (w *Worker) Enqueue(name string, args... interface{}) (error) {
     var qc QueuedCall
     qc.MethodName = name
     qc.Args = make([]interface{}, len(args))
+    qc.Enqueued = time.Now().Unix()
     for i, param := range args {
         qc.Args[i] = param
     }
@@ -69,16 +94,20 @@ func (w *Worker) Work() {
             if outstanding > 0 {
                 if qc, err := w.Dequeue(); err == nil {
                     if err = w.Invoke(qc); err != nil {
-                        // do some kind of error thing
+                        fmt.Println(err)
+                        w.EnqueueFailed(qc)
+                    } else {
+                        qc.Executed = time.Now().Unix()
+                        w.EnqueueFinished(qc)
                     }
                 } else {
-                    // do some kind of error thing
+                    fmt.Println(err)
                 }
             } else {
-                time.Sleep(time.Duration(1000 * time.Millisecond))
+                time.Sleep(time.Duration(w.IdleSleep) * time.Millisecond)
             }
         } else {
-            // do some kind of error thing here
+            fmt.Println(err)
         }
     }
 }
@@ -97,9 +126,9 @@ func SanityCheck(service interface{}, qc QueuedCall) (error) {
     return nil
 }
 
-func (w *Worker) Invoke(qc QueuedCall) (error) {
+func (w *Worker) Invoke(qc QueuedCall) (err error) {
 
-    if err := SanityCheck(w.service, qc); err != nil {
+    if err = SanityCheck(w.service, qc); err != nil {
         return err
     }
 
@@ -107,8 +136,34 @@ func (w *Worker) Invoke(qc QueuedCall) (error) {
     for i, param := range qc.Args {
         inputs[i] = reflect.ValueOf(param)
     }
-    
-    go reflect.ValueOf(w.service).MethodByName(qc.MethodName).Call(inputs)
 
-    return nil
+    defer func() {
+        if r := recover(); r != nil {
+            switch t := r.(type) {
+            case string:
+                err = errors.New(t)
+                break;
+            case error:
+                err = t
+                break;
+            default:
+                err = errors.New("Unknown panic")
+            }
+        }
+    }()
+
+    reflect.ValueOf(w.service).MethodByName(qc.MethodName).Call(inputs)
+
+    return err
+}
+
+func RootHandler(w http.ResponseWriter, r *http.Request) {
+    fmt.Fprintf(w, "TODO: Add stuff here.")
+}
+
+func (w *Worker) ServeHttp(address string) {
+    http.HandleFunc("/", RootHandler)
+    if err := http.ListenAndServe(address, nil); err != nil {
+        panic(err)
+    }
 }
