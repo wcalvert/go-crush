@@ -59,7 +59,7 @@ func (w *Worker) Enqueue(name string, args... interface{}) (error) {
     for i, param := range args {
         qc.Args[i] = param
     }
-    if err := SanityCheck(w.service, qc); err != nil {
+    if err := w.SanityCheck(qc); err != nil {
         return err
     }
     b, err2 := json.Marshal(qc); 
@@ -83,7 +83,7 @@ func (w *Worker) Dequeue() (QueuedCall, error) {
         return qc, err
     }
 
-    err = SanityCheck(w.service, qc)
+    err = w.SanityCheck(qc)
     return qc, err
     
 }
@@ -112,14 +112,14 @@ func (w *Worker) Work() {
     }
 }
 
-func SanityCheck(service interface{}, qc QueuedCall) (error) {
+func (w *Worker) SanityCheck(qc QueuedCall) (error) {
 
-    if !reflect.ValueOf(service).MethodByName(qc.MethodName).IsValid() {
+    if !reflect.ValueOf(w.service).MethodByName(qc.MethodName).IsValid() {
         err := errors.New("Invalid method")
         return err
     }
 
-    if len(qc.Args) != reflect.ValueOf(service).MethodByName(qc.MethodName).Type().NumIn() {
+    if len(qc.Args) != reflect.ValueOf(w.service).MethodByName(qc.MethodName).Type().NumIn() {
         err := errors.New("Incorrect number of arguments")
         return err
     }
@@ -128,7 +128,7 @@ func SanityCheck(service interface{}, qc QueuedCall) (error) {
 
 func (w *Worker) Invoke(qc QueuedCall) (err error) {
 
-    if err = SanityCheck(w.service, qc); err != nil {
+    if err = w.SanityCheck(qc); err != nil {
         return err
     }
 
