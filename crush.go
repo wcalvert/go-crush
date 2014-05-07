@@ -51,7 +51,7 @@ func (w *Worker) EnqueueFinished(qc QueuedCall) {
     }
 }
 
-func (w *Worker) Enqueue(name string, args... interface{}) (error) {
+func (w *Worker) Enqueue(name string, args... interface{}) (err error) {
     var qc QueuedCall
     qc.MethodName = name
     qc.Args = make([]interface{}, len(args))
@@ -59,15 +59,15 @@ func (w *Worker) Enqueue(name string, args... interface{}) (error) {
     for i, param := range args {
         qc.Args[i] = param
     }
-    if err := w.SanityCheck(qc); err != nil {
+    if err = w.SanityCheck(qc); err != nil {
         return err
     }
-    b, err2 := json.Marshal(qc); 
-    if err2 != nil {
-        return err2
+    if b, err := json.Marshal(qc); err != nil {
+        return err
+    } else {
+        w.client.Rpush(w.WorkQueue, b)
     }
-    w.client.Rpush(w.WorkQueue, b)
-    return nil
+    return err
 }
 
 func (w *Worker) Dequeue() (QueuedCall, error) {
@@ -163,6 +163,7 @@ func RootHandler(w http.ResponseWriter, r *http.Request) {
 
 func (w *Worker) ServeHttp(address string) {
     http.HandleFunc("/", RootHandler)
+    http.Handle("/static", http.FileServer(http.Dir("./static/")))
     if err := http.ListenAndServe(address, nil); err != nil {
         panic(err)
     }
