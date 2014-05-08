@@ -1,8 +1,9 @@
-package main
+package crush 
 
 import "fmt"
 import "math/big"
-import "crush"
+import "testing"
+import "time"
 
 type MyService struct {}
 
@@ -24,14 +25,15 @@ func (myService *MyService) Fibonacci(i float64) {
 }
 
 func (myService *MyService) Explode() {
-	panic("Something went horribly wrong!")
+	panic("This is a panic!")
 }
 
-func main() {
-	w := crush.NewWorker(&MyService{}, "MyService")
+func TestCrush(t *testing.T) {
+	w := NewWorker(&MyService{}, "MyService")
 
 	go w.ServeHttp("0.0.0.0:8080")
 
+	w.Enqueue("Explode")
 	w.Enqueue("Multiply", 1.1, 2.3)
 	w.Enqueue("Fibonacci", 10)
 	w.Enqueue("Multiply", 1.1, 2.4)
@@ -40,7 +42,7 @@ func main() {
 	w.Enqueue("Fibonacci", 30)
 	w.Enqueue("Multiply", 1.1, 2.6)
 	w.Enqueue("Fibonacci", 40)
-	w.Enqueue("Explode")
 
-	w.Work()
+	go w.Work()
+	time.Sleep(2500 * time.Millisecond)
 }
