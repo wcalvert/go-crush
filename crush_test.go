@@ -4,6 +4,7 @@ import "fmt"
 import "math/big"
 import "testing"
 import "time"
+import "github.com/bmizerany/assert"
 
 type MyService struct {}
 
@@ -28,12 +29,11 @@ func (myService *MyService) Explode() {
 	panic("This is a panic!")
 }
 
-func TestCrush(t *testing.T) {
+func TestValidArgs(t *testing.T) {
 	w := NewWorker(&MyService{}, "MyService")
 
 	go w.ServeHttp("0.0.0.0:8080")
 
-	w.Enqueue("Explode")
 	w.Enqueue("Multiply", 1.1, 2.3)
 	w.Enqueue("Fibonacci", 10)
 	w.Enqueue("Multiply", 1.1, 2.4)
@@ -45,4 +45,38 @@ func TestCrush(t *testing.T) {
 
 	go w.Work()
 	time.Sleep(2500 * time.Millisecond)
+}
+
+func TestPanic(t *testing.T) {
+	w := NewWorker(&MyService{}, "MyService")
+
+	err := w.Enqueue("Explode")
+	assert.Equal(t, err, nil)
+}
+
+func TestInvalidNumArgs(t *testing.T) {
+	w := NewWorker(&MyService{}, "MyService")
+
+	err := w.Enqueue("Multiply")
+	assert.NotEqual(t, err, nil)
+
+	err = w.Enqueue("Multiply", 1.1, 2.2, 3.3)
+	assert.NotEqual(t, err, nil)
+}
+
+func TestInvalidTypeArgs(t *testing.T) {
+	w := NewWorker(&MyService{}, "MyService")
+
+	err := w.Enqueue("Multiply", "asdf", "qwerty")
+	assert.NotEqual(t, err, nil)
+
+	err = w.Enqueue("Multiply", true, true)
+	assert.NotEqual(t, err, nil)
+}
+
+func TestInvalidMethod(t *testing.T) {
+	w := NewWorker(&MyService{}, "MyService")
+
+	err := w.Enqueue("Derp")
+	assert.NotEqual(t, err, nil)
 }

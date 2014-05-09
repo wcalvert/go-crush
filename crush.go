@@ -123,6 +123,9 @@ func (w *Worker) SanityCheck(qc QueuedCall) (error) {
         err := errors.New("Incorrect number of arguments")
         return err
     }
+
+    //TODO: add a check for correct argument type
+    
     return nil
 }
 
