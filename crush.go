@@ -124,8 +124,13 @@ func (w *Worker) SanityCheck(qc QueuedCall) (error) {
         return err
     }
 
-    //TODO: add a check for correct argument type
-    
+    for i, param := range qc.Args {
+        if reflect.ValueOf(w.service).MethodByName(qc.MethodName).Type().In(i) != reflect.ValueOf(param).Type() {
+            err := errors.New("Argument type mismatch")
+            return err
+        }
+    }
+
     return nil
 }
 
