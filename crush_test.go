@@ -2,6 +2,7 @@ package crush
 
 import "fmt"
 import "math/big"
+import "math/cmplx"
 import "testing"
 import "time"
 import "github.com/bmizerany/assert"
@@ -71,6 +72,15 @@ func TestInvalidTypeArgs(t *testing.T) {
 	assert.NotEqual(t, err, nil)
 
 	err = w.Enqueue("Multiply", true, true)
+	assert.NotEqual(t, err, nil)
+
+	err = w.Enqueue("Multiply", 1, 2)
+	assert.NotEqual(t, err, nil)
+
+	err = w.Enqueue("Multiply", cmplx.Sqrt(-5 + 12i), cmplx.Sqrt(-7 + 4i))
+	assert.NotEqual(t, err, nil)
+
+	err = w.Enqueue("Multiply", big.NewInt(1), big.NewInt(2))
 	assert.NotEqual(t, err, nil)
 }
 
