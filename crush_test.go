@@ -13,7 +13,11 @@ func (myService *MyService) Multiply(i float64, j float64) {
 	fmt.Printf("i*j is %2.2f\n", i*j)
 }
 
-func (myService *MyService) Fibonacci(i float64) {
+func (myService *MyService) Concat(a string, b string) {
+	fmt.Printf("%s%s\n", a, b)
+}
+
+func (myService *MyService) Fibonacci(i int64) {
 	n := int(i)
 	a := big.NewInt(0)
 	b := big.NewInt(1)
@@ -31,34 +35,36 @@ func (myService *MyService) Explode() {
 }
 
 func TestValidArgs(t *testing.T) {
-	w := NewWorker(&MyService{}, "MyService")
+	err, w := NewWorker(&MyService{}, "MyService", "localhost:6379")
+	assert.Equal(t, err, nil)
 
-	go w.ServeHttp("0.0.0.0:8080")
-
-	w.Enqueue("Multiply", 1.1, 2.3)
-	w.Enqueue("Fibonacci", 10)
-	w.Enqueue("Multiply", 1.1, 2.4)
-	w.Enqueue("Fibonacci", 20)
-	w.Enqueue("Multiply", 1.1, 2.5)
-	w.Enqueue("Fibonacci", 30)
-	w.Enqueue("Multiply", 1.1, 2.6)
-	w.Enqueue("Fibonacci", 40)
+	err = w.Enqueue("Multiply", 1.1, 2.5)
+	assert.Equal(t, err, nil)
+	err = w.Enqueue("Fibonacci", int64(50))
+	assert.Equal(t, err, nil)
+	err = w.Enqueue("Multiply", 1.2, 2.6)
+	assert.Equal(t, err, nil)
+	err = w.Enqueue("Fibonacci", int64(100))
+	assert.Equal(t, err, nil)
+	err = w.Enqueue("Concat", "hello, ", "world")
 
 	go w.Work()
 	time.Sleep(2500 * time.Millisecond)
 }
 
 func TestPanic(t *testing.T) {
-	w := NewWorker(&MyService{}, "MyService")
+	err, w := NewWorker(&MyService{}, "MyService", "localhost:6379")
+	assert.Equal(t, err, nil)
 
-	err := w.Enqueue("Explode")
+	err = w.Enqueue("Explode")
 	assert.Equal(t, err, nil)
 }
 
 func TestInvalidNumArgs(t *testing.T) {
-	w := NewWorker(&MyService{}, "MyService")
+	err, w := NewWorker(&MyService{}, "MyService", "localhost:6379")
+	assert.Equal(t, err, nil)
 
-	err := w.Enqueue("Multiply")
+	err = w.Enqueue("Multiply")
 	assert.NotEqual(t, err, nil)
 
 	err = w.Enqueue("Multiply", 1.1, 2.2, 3.3)
@@ -66,9 +72,10 @@ func TestInvalidNumArgs(t *testing.T) {
 }
 
 func TestInvalidTypeArgs(t *testing.T) {
-	w := NewWorker(&MyService{}, "MyService")
+	err, w := NewWorker(&MyService{}, "MyService", "localhost:6379")
+	assert.Equal(t, err, nil)
 
-	err := w.Enqueue("Multiply", "asdf", "qwerty")
+	err = w.Enqueue("Multiply", "asdf", "qwerty")
 	assert.NotEqual(t, err, nil)
 
 	err = w.Enqueue("Multiply", true, true)
@@ -82,11 +89,29 @@ func TestInvalidTypeArgs(t *testing.T) {
 
 	err = w.Enqueue("Multiply", big.NewInt(1), big.NewInt(2))
 	assert.NotEqual(t, err, nil)
+
+	err = w.Enqueue("Fibonacci", 12)
+	assert.NotEqual(t, err, nil)
+
+	err = w.Enqueue("Fibonacci", 12.0)
+	assert.NotEqual(t, err, nil)
+
+	err = w.Enqueue("Fibonacci", true)
+	assert.NotEqual(t, err, nil)
+
+	err = w.Enqueue("Fibonacci", "asdf")
+	assert.NotEqual(t, err, nil)
 }
 
 func TestInvalidMethod(t *testing.T) {
-	w := NewWorker(&MyService{}, "MyService")
+	err, w := NewWorker(&MyService{}, "MyService", "localhost:6379")
+	assert.Equal(t, err, nil)
 
-	err := w.Enqueue("Derp")
+	err = w.Enqueue("Derp")
+	assert.NotEqual(t, err, nil)
+}
+
+func TestIncorrectRedisHost(t *testing.T) {
+	err, _ := NewWorker(&MyService{}, "MyService", "localhost:9999")
 	assert.NotEqual(t, err, nil)
 }
