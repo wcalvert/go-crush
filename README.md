@@ -37,7 +37,7 @@ import "math/big"
 import "time"
 import "github.com/wcalvert/go-crush"
 
-type MyService struct {}
+type MyService struct{}
 
 func (myService *MyService) Multiply(i float64, j float64) {
     fmt.Printf("i*j is %2.2f\n", i*j)
@@ -53,7 +53,7 @@ func (myService *MyService) Fibonacci(i int64) {
     b := big.NewInt(1)
     for i := 0; i < n; i++ {
         c := new(big.Int)
-        c.Add(a,b)
+        c.Add(a, b)
         a = b
         b = c
     }
@@ -68,9 +68,8 @@ func main() {
 
         go w.Work()
         time.Sleep(2500 * time.Millisecond)
-
     } else {
-        fmt.Println(err);
+        fmt.Println(err)
     }
 }
 ```
